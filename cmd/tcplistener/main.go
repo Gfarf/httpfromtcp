@@ -33,7 +33,6 @@ func main() {
 		for key, value := range lineChannels.Headers {
 			fmt.Printf("- %s: %s\n", key, value)
 		}
-		fmt.Printf("Body:\n%s\n", string(lineChannels.Body))
 		fmt.Println("===== Connection And Channel Closed ======")
 	}
 }

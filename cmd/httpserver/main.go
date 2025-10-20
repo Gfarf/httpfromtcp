@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/Gfarf/httpfromtcp/internal/server"
 )
 
 const port = 42069
