@@ -134,6 +134,6 @@ func TestRequestLineParse(t *testing.T) {
 			"partial content",
 		numBytesPerRead: 3,
 	}
-	r, err = RequestFromReader(reader)
+	_, err = RequestFromReader(reader)
 	require.Error(t, err)
 }

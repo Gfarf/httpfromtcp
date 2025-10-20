@@ -8,5 +8,3 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-require github.com/Gfarf/httpfromtcp/internal/request v0.0.0
-replace github.com/Gfarf/httpfromtcp/internal/request => ./internal/request

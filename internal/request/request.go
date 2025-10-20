@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/Gfarf/httpfromtcp/internal/headers"
 )
 
 type Request struct {
-	RequestLine RequestLine
-	Headers     headers.Headers
-	state       requestState
+	RequestLine    RequestLine
+	Headers        headers.Headers
+	Body           []byte
+	state          requestState
+	bodyLengthRead int
 }
 
 type RequestLine struct {
@@ -27,6 +30,7 @@ type requestState int
 const (
 	requestStateInitialized requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
@@ -39,6 +43,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	req := &Request{
 		state:   requestStateInitialized,
 		Headers: headers.NewHeaders(),
+		Body:    make([]byte, 0),
 	}
 	for req.state != requestStateDone {
 		if readToIndex >= len(buf) {
@@ -50,7 +55,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		numBytesRead, err := reader.Read(buf[readToIndex:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				req.state = requestStateDone
+				if req.state != requestStateDone {
+					return nil, fmt.Errorf("incomplete request, in state: %d, read n bytes on EOF: %d", req.state, numBytesRead)
+				}
 				break
 			}
 			return nil, err
@@ -161,6 +168,26 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, nil
 		}
 		if done {
+			r.state = requestStateParsingBody
+		}
+		return n, nil
+	case requestStateParsingBody:
+		length := r.Headers.Get("content-length")
+		if length == "" {
+			r.state = requestStateDone
+			return 0, nil
+		}
+		intLength, err := strconv.Atoi(length)
+		if err != nil {
+			return 0, fmt.Errorf("content length incorrectly specified")
+		}
+		n := len(data)
+		r.Body = append(r.Body, data...)
+		r.bodyLengthRead += n
+		if len(r.Body) > intLength {
+			return 0, fmt.Errorf("body greater than expected")
+		}
+		if len(r.Body) == intLength {
 			r.state = requestStateDone
 		}
 		return n, nil

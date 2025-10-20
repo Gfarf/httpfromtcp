@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/Gfarf/httpfromtcp/internal/request"
 )
 
 func main() {
@@ -22,14 +24,12 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("===== Connection Accepted ======")
-		lineChannels, err := RequestFromReader(connection)
+		lineChannels, err := request.RequestFromReader(connection)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		for line := range lineChannels {
-			fmt.Println(line)
-		}
+		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n", lineChannels.RequestLine.Method, lineChannels.RequestLine.RequestTarget, lineChannels.RequestLine.HttpVersion)
 		fmt.Println("===== Connection And Channel Closed ======")
 	}
 }
