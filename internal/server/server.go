@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync/atomic"
 
 	"github.com/Gfarf/httpfromtcp/internal/request"
@@ -13,20 +14,29 @@ import (
 
 type Handler func(w io.Writer, req *request.Request) *HandlerError
 
-// Contains the state of the server
-type Server struct {
-	closed   atomic.Bool
-	listener net.Listener
+type HandlerError struct {
+	StatusCode response.StatusCode
+	Message    string
 }
 
-func Serve(port int) (*Server, error) {
+// Contains the state of the server
+type Server struct {
+	closed      atomic.Bool
+	listener    net.Listener
+	handlerFunc Handler
+}
+
+const bufferSize = 1024
+
+func Serve(port int, handler Handler) (*Server, error) {
 	//Creates a net.Listener and returns a new Server instance. Starts listening for requests inside a goroutine.
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 	s := Server{
-		listener: l,
+		listener:    l,
+		handlerFunc: handler,
 	}
 	go s.listen()
 	return &s, nil
@@ -59,8 +69,22 @@ func (s *Server) listen() {
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-	fmt.Println("handling something, starting to write status line")
-	response.WriteStatusLine(conn, 0)
-	response.WriteHeaders(conn, response.GetDefaultHeaders(0))
-	return
+	lineChannels, err := request.RequestFromReader(conn)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	herr := s.handlerFunc(conn, lineChannels)
+	if err != nil {
+		writeErrorHandler(conn, herr)
+	}
+}
+
+func writeErrorHandler(w io.Writer, err *HandlerError) error {
+	output := fmt.Sprintf("error %s, code %v", err.Message, err.StatusCode)
+	_, err1 := w.Write([]byte(output))
+	if err1 != nil {
+		return err1
+	}
+	return nil
 }

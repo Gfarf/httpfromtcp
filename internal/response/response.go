@@ -10,9 +10,9 @@ import (
 type StatusCode int
 
 const (
-	statusCodeOK StatusCode = iota
-	statusCodeInternalServerError
-	statusCodeBadRequest
+	statusCodeOK                  StatusCode = 200
+	statusCodeInternalServerError StatusCode = 500
+	statusCodeBadRequest          StatusCode = 400
 )
 
 func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
