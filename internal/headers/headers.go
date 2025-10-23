@@ -83,3 +83,28 @@ func (h Headers) Get(key string) string {
 	}
 	return ""
 }
+
+func (h Headers) Override(key, value string) {
+	h[strings.ToLower(key)] = value
+}
+
+func (h Headers) GetTrailers(key string) string {
+	value, ok := h[key]
+	if ok {
+		return value
+	}
+	return ""
+}
+
+func (h Headers) OverrideTrailers(key, value string) {
+	h[key] = value
+}
+
+func (h Headers) SetTrailers(key, value string) {
+	oldValue, ok := h[key]
+	if ok {
+		h[key] = oldValue + ", " + value
+	} else {
+		h[key] = value
+	}
+}

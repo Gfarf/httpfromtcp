@@ -2,22 +2,15 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"os"
 	"sync/atomic"
 
 	"github.com/Gfarf/httpfromtcp/internal/request"
 	"github.com/Gfarf/httpfromtcp/internal/response"
 )
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
-
-type HandlerError struct {
-	StatusCode response.StatusCode
-	Message    string
-}
+type Handler func(w *response.Writer, req *request.Request)
 
 // Contains the state of the server
 type Server struct {
@@ -25,8 +18,6 @@ type Server struct {
 	listener    net.Listener
 	handlerFunc Handler
 }
-
-const bufferSize = 1024
 
 func Serve(port int, handler Handler) (*Server, error) {
 	//Creates a net.Listener and returns a new Server instance. Starts listening for requests inside a goroutine.
@@ -58,7 +49,8 @@ func (s *Server) listen() {
 		// Wait for a connection.
 		conn, err := s.listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error accepting connection: %v", err)
+			continue
 		}
 		// Handle the connection in a new goroutine.
 		// The loop then returns to accepting, so that
@@ -69,22 +61,14 @@ func (s *Server) listen() {
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
+	w := response.NewWriter(conn)
 	lineChannels, err := request.RequestFromReader(conn)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		w.WriteStatusLine(400)
+		body := []byte(fmt.Sprintf("Error parsing request: %v", err))
+		w.WriteHeaders(response.GetDefaultHeaders(len(body)))
+		w.WriteBody(body)
+		return
 	}
-	herr := s.handlerFunc(conn, lineChannels)
-	if err != nil {
-		writeErrorHandler(conn, herr)
-	}
-}
-
-func writeErrorHandler(w io.Writer, err *HandlerError) error {
-	output := fmt.Sprintf("error %s, code %v", err.Message, err.StatusCode)
-	_, err1 := w.Write([]byte(output))
-	if err1 != nil {
-		return err1
-	}
-	return nil
+	s.handlerFunc(w, lineChannels)
 }
