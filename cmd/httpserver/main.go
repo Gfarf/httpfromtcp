@@ -47,6 +47,9 @@ func writingHeaders(w *response.Writer, req *request.Request) {
 	} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
 		handlerHTTPBIN(w, req, h)
 		return
+	} else if req.RequestLine.RequestTarget == "/video" {
+		handlerVideo(w, req, h)
+		return
 	} else {
 		buf = []byte("<html><head><title>200 OK</title></head><body><h1>Success!</h1><p>Your request was an absolute banger.</p></body></html>")
 		sCode = 200
@@ -104,4 +107,20 @@ func handlerHTTPBIN(w *response.Writer, req *request.Request, h headers.Headers)
 		fmt.Println("Error writing trailers:", err)
 	}
 	fmt.Println("Wrote trailers")
+}
+
+func handlerVideo(w *response.Writer, req *request.Request, h headers.Headers) {
+	h.Override("content-type", "video/mp4")
+	f, err := os.ReadFile("./assets/vim.mp4")
+	if err != nil {
+		w.WriteStatusLine(500)
+		body := []byte(fmt.Sprintf("Error reading file: %v\n", err))
+		w.WriteHeaders(response.GetDefaultHeaders(len(body)))
+		w.WriteBody(body)
+		return
+	}
+	h.Override("content-length", fmt.Sprintf("%d", len(f)))
+	w.WriteStatusLine(200)
+	w.WriteHeaders(h)
+	w.WriteBody(f)
 }
